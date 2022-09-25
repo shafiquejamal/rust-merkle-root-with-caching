@@ -3,7 +3,6 @@ pub mod trie_node {
         collections::hash_map::DefaultHasher,
         fmt::Display,
         hash::{Hash, Hasher},
-        ops::Deref,
     };
 
     type MaybeNode<T> = Option<Box<TrieNode<T>>>;
@@ -12,6 +11,7 @@ pub mod trie_node {
     pub struct TrieNode<T: ToString> {
         maybe_data: Option<T>,
         children: [MaybeNode<T>; 2],
+        maybe_cached_merkle_root: Option<String>,
     }
 
     impl<T: ToString> From<TrieNode<T>> for MaybeNode<T> {
@@ -48,7 +48,11 @@ pub mod trie_node {
                 .collect::<Vec<u8>>()
         }
 
-        pub fn merkle_root(&self) -> String {
+        pub fn merkle_root(&mut self) -> String {
+            if let Some(cached_merkle_root) = &self.maybe_cached_merkle_root {
+                return cached_merkle_root.clone();
+            }
+
             let is_leaf_node = self
                 .children
                 .iter()
@@ -64,13 +68,13 @@ pub mod trie_node {
             data.hash(&mut hashing);
             let hash_of_data = hashing.finish().to_string();
             if is_leaf_node {
+                self.maybe_cached_merkle_root = Some(hash_of_data.clone());
                 hash_of_data
             } else {
                 let hashes: Vec<String> = self
                     .children
-                    .as_ref()
-                    .iter()
-                    .map(|child| match child.as_deref() {
+                    .iter_mut()
+                    .map(|child| match child.as_deref_mut() {
                         Some(c) => c.merkle_root(),
                         None => {
                             let mut hashing = DefaultHasher::new();
@@ -83,7 +87,9 @@ pub mod trie_node {
                 let hash_of_right = hashes.get(1).unwrap();
                 let mut hashing = DefaultHasher::new();
                 format!("{hash_of_data}{hash_of_left}{hash_of_right}").hash(&mut hashing);
-                hashing.finish().to_string()
+                let hash = hashing.finish().to_string();
+                self.maybe_cached_merkle_root = Some(hash.clone());
+                hash
             }
         }
 
@@ -115,10 +121,14 @@ pub mod trie_node {
                 path_to_node: Vec<u8>,
                 index: usize,
             ) {
+                node.maybe_cached_merkle_root = None;
                 let index_of_child: usize = if path_to_node[index] == 1 { 1 } else { 0 };
                 if index == 0 {
                     match node.children[index_of_child] {
-                        Some(ref mut child_node) => child_node.set_data(data),
+                        Some(ref mut child_node) => {
+                            child_node.maybe_cached_merkle_root = None;
+                            child_node.set_data(data)
+                        }
                         None => {
                             let new_node = TrieNode::<T>::new_with(data);
                             node.children[index_of_child] = new_node.into();
@@ -179,14 +189,28 @@ mod tests {
     #[test]
     fn test_get_go_rights() {
         let actual = TrieNode::<i32>::path_to_node(4 as u32);
-        assert_eq!(vec![1, 0, 0], actual)
+        assert_eq!(vec![1, 0, 0], actual);
     }
 
     #[test]
-    fn hashing() {
+    fn test_merkle_root() {
         let mut node: TrieNode<String> = TrieNode::new();
         node.insert(1, "foo".to_string());
         node.insert(2, "bar".to_string());
-        assert_eq!(node.merkle_root(), "13830055607334163982")
+        assert_eq!(node.merkle_root(), "13830055607334163982");
+    }
+
+    #[test]
+    fn cached_merkle_root() {
+        // There is not an easy way to test the caching... maybe I could time the calls and compare the time for the first
+        //   with the times for the subsequent calls.
+        let mut node: TrieNode<String> = TrieNode::new();
+        node.insert(1, "foo".to_string());
+        node.insert(2, "bar".to_string());
+        node.insert(2, "temp".to_string());
+        node.insert(2, "bar".to_string());
+        assert_eq!(node.merkle_root(), "13830055607334163982");
+        assert_eq!(node.merkle_root(), "13830055607334163982");
+        assert_eq!(node.merkle_root(), "13830055607334163982");
     }
 }
