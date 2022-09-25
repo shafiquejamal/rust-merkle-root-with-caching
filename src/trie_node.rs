@@ -1,20 +1,26 @@
 pub mod trie_node {
+    use std::{
+        collections::hash_map::DefaultHasher,
+        fmt::Display,
+        hash::{Hash, Hasher},
+        ops::Deref,
+    };
 
     type MaybeNode<T> = Option<Box<TrieNode<T>>>;
 
     #[derive(Debug, Default, PartialEq)]
-    pub struct TrieNode<T> {
+    pub struct TrieNode<T: ToString> {
         maybe_data: Option<T>,
         children: [MaybeNode<T>; 2],
     }
 
-    impl<T> From<TrieNode<T>> for MaybeNode<T> {
+    impl<T: ToString> From<TrieNode<T>> for MaybeNode<T> {
         fn from(node: TrieNode<T>) -> Self {
             Some(Box::new(node))
         }
     }
 
-    impl<T: Default> TrieNode<T> {
+    impl<T: Default + ToString + Display> TrieNode<T> {
         pub fn new() -> Self {
             TrieNode::default()
         }
@@ -42,6 +48,45 @@ pub mod trie_node {
                 .collect::<Vec<u8>>()
         }
 
+        pub fn merkle_root(&self) -> String {
+            let is_leaf_node = self
+                .children
+                .iter()
+                .filter(|&node| node.is_some())
+                .peekable()
+                .peek()
+                .is_none();
+            let data = self
+                .get_data()
+                .map(|d| d.to_string())
+                .unwrap_or_else(|| "".to_string());
+            let mut hashing = DefaultHasher::new();
+            data.hash(&mut hashing);
+            let hash_of_data = hashing.finish().to_string();
+            if is_leaf_node {
+                hash_of_data
+            } else {
+                let hashes: Vec<String> = self
+                    .children
+                    .as_ref()
+                    .iter()
+                    .map(|child| match child.as_deref() {
+                        Some(c) => c.merkle_root(),
+                        None => {
+                            let mut hashing = DefaultHasher::new();
+                            "".hash(&mut hashing);
+                            hashing.finish().to_string()
+                        }
+                    })
+                    .collect();
+                let hash_of_left = hashes.get(0).unwrap();
+                let hash_of_right = hashes.get(1).unwrap();
+                let mut hashing = DefaultHasher::new();
+                format!("{hash_of_data}{hash_of_left}{hash_of_right}").hash(&mut hashing);
+                hashing.finish().to_string()
+            }
+        }
+
         pub fn find_by_key(&self, key: u32) -> Option<&TrieNode<T>> {
             let path_to_node = Self::path_to_node(key);
             let length = path_to_node.len();
@@ -64,7 +109,7 @@ pub mod trie_node {
             let path_to_node = Self::path_to_node(key);
             let length = path_to_node.len();
 
-            fn insert_recurse<T: Default>(
+            fn insert_recurse<T: Default + Display>(
                 node: &mut TrieNode<T>,
                 data: T,
                 path_to_node: Vec<u8>,
@@ -118,7 +163,6 @@ mod tests {
     fn insert_string() {
         let mut node: TrieNode<String> = TrieNode::new();
         node.insert(11, "4".to_string());
-        println!("-----> node:{:?}", node);
         assert_eq!(
             node.find_by_key(11).unwrap().get_data(),
             Some(&"4".to_string())
@@ -136,5 +180,13 @@ mod tests {
     fn test_get_go_rights() {
         let actual = TrieNode::<i32>::path_to_node(4 as u32);
         assert_eq!(vec![1, 0, 0], actual)
+    }
+
+    #[test]
+    fn hashing() {
+        let mut node: TrieNode<String> = TrieNode::new();
+        node.insert(1, "foo".to_string());
+        node.insert(2, "bar".to_string());
+        assert_eq!(node.merkle_root(), "13830055607334163982")
     }
 }

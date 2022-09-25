@@ -32,12 +32,12 @@ The Merkle Root of a trie is a hash that uniquely identifies any binary trie up 
 The Merkle Root of a TrieNode is calculated recursively as follows:
 - The Merkle Root of a null node is the hash of the empty string
 - The Merkle Root of a leaf node is the hash of the value of the node
-- The Merkle Root of an inner node is the is the has of the concatenation of the following:
+- The Merkle Root of an inner node is the is the hash of the concatenation of the following:
   - the hash of the node's value
   - the Merkle Root of the node's left child, and
   - the Merkle Root of the node's right child
 
-For this task you are required to implement a method MerkleRoot() that returns the MerkleRoot of ta TrieNode.
+For this task you are required to implement a method `MerkleRoot()` that returns the MerkleRoot of a TrieNode.
 
 Any hashing algorithm can be used in this task.
 
@@ -58,11 +58,11 @@ hash(
   // this is the hash of the Merkle Root of the left node
   hash(
     // this is the hash of the value of the node
-    hash("*") +
+    hash("") +
 
     // this is the Merkle Root of the node's left child,
     // which is a nil node
-    hash("*") +
+    hash("") +
 
     // this is the Merkle Root of the node's right child,
     // which is a leaf node
