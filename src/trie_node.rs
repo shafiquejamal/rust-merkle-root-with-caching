@@ -99,8 +99,8 @@ pub mod trie_node {
             let mut index: usize = length - 1;
             let mut maybe_node: Option<&TrieNode<T>> = Some(self);
             while let Some(node) = maybe_node {
-                let foo = path_to_node[index] as usize;
-                let next_node = node.children[foo].as_deref();
+                let child_number = path_to_node[index] as usize;
+                let next_node = node.children[child_number].as_deref();
                 if index == 0 {
                     return next_node;
                 }
