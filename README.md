@@ -11,7 +11,7 @@ Insert(uint key, string value)
 Get(uint key) string
 ```
 
-The `Insert` function adds a key/value pair to the trie rooted at the `TrieNode`. If the key already exists, the new value should replace the old value. in the trie. The `Get` function returns the value for the given key or the empty string if the key is not in the trie node rooted at the `TrieNode`.
+The `Insert` function adds a key/value pair to the trie rooted at the `TrieNode`. If the key already exists, the new value should replace the old value in the trie. The `Get` function returns the value for the given key or the empty string if the key is not in the trie node rooted at the `TrieNode`.
 
 For example, inserting pairs `(4, "foo")` and `(2, "bar")` in a trie node should decode the integers `4` and `2` into their binary representations (least significant bit first): `[0, 0, 1]` and `[0, 1]` respectively. The resulting trie looks like the following ("`-`" represents a node with an empty value):
 
